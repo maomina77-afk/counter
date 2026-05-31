@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>釣り鐘カウンター（倍音同時判定・スマホ用）</title>
+<title>釣り鐘カウンター（3帯域同時判定・スマホ用）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   body {
@@ -78,7 +78,7 @@
 </style>
 </head>
 <body>
-<h1>釣り鐘カウンター（倍音同時判定）</h1>
+<h1>釣り鐘カウンター（3帯域同時判定）</h1>
 <div id="time"></div>
 
 <div class="panel">
@@ -102,24 +102,32 @@
   </div>
   <hr>
   <div class="row">
-    <span>倍音1（3773Hz帯）</span>
-    <span>3600〜3920 Hz</span>
+    <span>LOW（基音帯）</span>
+    <span>700〜820 Hz</span>
   </div>
   <div class="row">
     <span>レベル</span>
-    <span id="band1Level">-</span>
+    <span id="bandLowLevel">-</span>
   </div>
   <div class="row">
-    <span>倍音2（1547Hz帯）</span>
+    <span>MID（1547Hz帯）</span>
     <span>1500〜1600 Hz</span>
   </div>
   <div class="row">
     <span>レベル</span>
-    <span id="band2Level">-</span>
+    <span id="bandMidLevel">-</span>
+  </div>
+  <div class="row">
+    <span>HIGH（3773Hz帯）</span>
+    <span>3600〜3920 Hz</span>
+  </div>
+  <div class="row">
+    <span>レベル</span>
+    <span id="bandHighLevel">-</span>
   </div>
   <div class="row">
     <span>threshold</span>
-    <span>0.2（両方超えたら判定）</span>
+    <span>0.2（3帯域すべて超えたら判定）</span>
   </div>
   <div class="row">
     <span>クールダウン</span>
@@ -143,14 +151,9 @@
   <button id="saveLog" class="secondary">ログをファイル保存</button>
 </div>
 
-<audio id="beep">
-  <!-- 短い無音に近いWAV（ブラウザが音声扱いするためのダミー） -->
-  <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAAAA" type="audio/wav">
-</audio>
-
 <script>
 /*** 設定値 ***/
-const LOW_MIN  = 700;   // 低音部（727〜797Hzをカバー）
+const LOW_MIN  = 700;   // 基音帯（727〜797Hzをカバー）
 const LOW_MAX  = 820;
 const MID_MIN  = 1500;  // 1547Hz帯
 const MID_MAX  = 1600;
@@ -175,11 +178,11 @@ const timeEl = document.getElementById('time');
 const micStatusEl = document.getElementById('micStatus');
 const peakFreqEl = document.getElementById('peakFreq');
 const volumeEl = document.getElementById('volume');
-const band1LevelEl = document.getElementById('band1Level');
-const band2LevelEl = document.getElementById('band2Level');
+const bandLowLevelEl  = document.getElementById('bandLowLevel');
+const bandMidLevelEl  = document.getElementById('bandMidLevel');
+const bandHighLevelEl = document.getElementById('bandHighLevel');
 const countEl = document.getElementById('count');
 const logEl = document.getElementById('log');
-const beepEl = document.getElementById('beep');
 
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
@@ -200,9 +203,9 @@ setInterval(updateClock, 500);
 updateClock();
 
 /*** ローカルストレージ ***/
-const STORAGE_KEY_COUNT = 'bellCounter_count';
-const STORAGE_KEY_LOG = 'bellCounter_log';
-const STORAGE_KEY_MIC = 'bellCounter_micAutoStart';
+const STORAGE_KEY_COUNT = 'bellCounter3_count';
+const STORAGE_KEY_LOG   = 'bellCounter3_log';
+const STORAGE_KEY_MIC   = 'bellCounter3_micAutoStart';
 
 function loadState() {
   const savedCount = localStorage.getItem(STORAGE_KEY_COUNT);
@@ -274,7 +277,7 @@ function autoCount() {
   count++;
   lastCountTime = now;
   playBeep();
-  addLogEntry('自動検出', +1, '倍音2つ同時検出');
+  addLogEntry('自動検出', +1, '3帯域同時検出');
 }
 
 /*** 手動カウント ***/
@@ -330,7 +333,7 @@ saveLogBtn.addEventListener('click', () => {
 
 /*** マイク開始 ***/
 async function startMic() {
-  if (audioContext && analysing) return;
+  if (audioContext && analyzing) return;
   try {
     if (!audioContext) {
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -366,7 +369,7 @@ function stopMic() {
   } catch (e) {
     console.warn(e);
   }
-  analysing = false;
+  analyzing = false;
   micStatusEl.textContent = '停止中';
   startBtn.disabled = false;
   stopBtn.disabled = true;
@@ -397,33 +400,31 @@ function analyzeLoop() {
   volumeEl.textContent = volume.toFixed(3);
 
   // 指定帯域のレベル（最大値）
-function bandLevel(minHz, maxHz) {
-  let max = 0;
-  for (let i = 0; i < dataArray.length; i++) {
-    const f = i * freqPerBin;
-    if (f >= minHz && f <= maxHz) {
-      if (dataArray[i] > max) max = dataArray[i];
+  function bandLevel(minHz, maxHz) {
+    let max = 0;
+    for (let i = 0; i < dataArray.length; i++) {
+      const f = i * freqPerBin;
+      if (f >= minHz && f <= maxHz) {
+        if (dataArray[i] > max) max = dataArray[i];
+      }
     }
+    return max / 255;
   }
-  return max / 255;
-}
 
-const lowLevel  = bandLevel(LOW_MIN,  LOW_MAX);
-const midLevel  = bandLevel(MID_MIN,  MID_MAX);
-const highLevel = bandLevel(HIGH_MIN, HIGH_MAX);
+  const lowLevel  = bandLevel(LOW_MIN,  LOW_MAX);
+  const midLevel  = bandLevel(MID_MIN,  MID_MAX);
+  const highLevel = bandLevel(HIGH_MIN, HIGH_MAX);
 
-// 表示用（必要なら）
-bandLowLevelEl.textContent  = lowLevel.toFixed(3);
-bandMidLevelEl.textContent  = midLevel.toFixed(3);
-bandHighLevelEl.textContent = highLevel.toFixed(3);
+  bandLowLevelEl.textContent  = lowLevel.toFixed(3);
+  bandMidLevelEl.textContent  = midLevel.toFixed(3);
+  bandHighLevelEl.textContent = highLevel.toFixed(3);
 
-// ★ 判定条件：3帯域すべてが threshold 以上
-if (lowLevel >= THRESHOLD &&
-    midLevel >= THRESHOLD &&
-    highLevel >= THRESHOLD) {
-  autoCount();
-}
-
+  // 3帯域すべて threshold 以上ならカウント
+  if (lowLevel >= THRESHOLD &&
+      midLevel >= THRESHOLD &&
+      highLevel >= THRESHOLD) {
+    autoCount();
+  }
 
   requestAnimationFrame(analyzeLoop);
 }
@@ -444,7 +445,6 @@ stopBtn.disabled = true;
 // リロード後もマイク継続（許可済みなら自動開始を試みる）
 window.addEventListener('load', () => {
   if (getMicAutoStart()) {
-    // モバイルではユーザー操作が必要な場合もあるが、可能な限り自動再開を試みる
     startMic();
   }
 });
