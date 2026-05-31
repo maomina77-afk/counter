@@ -2,13 +2,18 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>釣り鐘カウンター（フル調整版・3帯域同時判定）</title>
+<title>釣り鐘カウンター（3帯域・個別しきい値・ログ付き）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
+  * {
+    box-sizing: border-box;
+  }
   body {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    margin: 6px;
+    margin: 4px;
     background: #f7f7f7;
+    max-width: 100vw;
+    overflow-x: hidden;
   }
   h1 {
     font-size: 18px;
@@ -18,7 +23,7 @@
   #time {
     font-size: 16px;
     text-align: center;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
   .panel {
     background: #fff;
@@ -26,6 +31,7 @@
     padding: 6px;
     margin-bottom: 6px;
     box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    width: 100%;
   }
   .label {
     font-weight: bold;
@@ -68,19 +74,55 @@
     width: 100%;
     height: 140px;
     font-size: 11px;
-    box-sizing: border-box;
+    resize: vertical;
   }
   .flex-row {
     display: flex;
     justify-content: space-between;
     gap: 2%;
   }
+  .th-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 4px;
+  }
+  .th-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+  }
+  .th-row input {
+    width: 70px;
+    padding: 2px 4px;
+    font-size: 12px;
+  }
 </style>
 </head>
 <body>
-<h1>釣り鐘カウンター（フル調整・3帯域同時判定）</h1>
+<h1>釣り鐘カウンター（3帯域・しきい値調整版）</h1>
 <div id="time"></div>
 
+<!-- カウンター -->
+<div class="panel">
+  <div class="label">カウンター</div>
+  <div class="counter" id="count">0</div>
+  <div class="flex-row">
+    <button id="manualPlus" class="small">＋1（手動）</button>
+    <button id="manualMinus" class="small secondary">−1（手動）</button>
+  </div>
+  <button id="clearAll" class="danger">オールクリア（カウンター＋ログ）</button>
+</div>
+
+<!-- ログ -->
+<div class="panel">
+  <div class="label">カウントログ</div>
+  <textarea id="log" readonly></textarea>
+  <button id="saveLog" class="secondary">ログをファイル保存</button>
+</div>
+
+<!-- マイク制御 -->
 <div class="panel">
   <div class="row">
     <span class="label">マイク状態</span>
@@ -88,6 +130,34 @@
   </div>
   <button id="startBtn">マイク開始</button>
   <button id="stopBtn" class="secondary">マイク停止</button>
+</div>
+
+<!-- しきい値＋解析 -->
+<div class="panel">
+  <div class="label">しきい値設定（帯域ごと）</div>
+  <div class="th-inputs">
+    <div class="th-row">
+      <span>LOW（700〜820 Hz）</span>
+      <span>
+        しきい値:
+        <input id="thLow" type="number" step="0.01" min="0" max="1" value="0.20">
+      </span>
+    </div>
+    <div class="th-row">
+      <span>MID（1500〜1600 Hz）</span>
+      <span>
+        しきい値:
+        <input id="thMid" type="number" step="0.01" min="0" max="1" value="0.20">
+      </span>
+    </div>
+    <div class="th-row">
+      <span>HIGH（3600〜3920 Hz）</span>
+      <span>
+        しきい値:
+        <input id="thHigh" type="number" step="0.01" min="0" max="1" value="0.20">
+      </span>
+    </div>
+  </div>
 </div>
 
 <div class="panel">
@@ -127,16 +197,12 @@
   </div>
   <hr>
   <div class="row">
-    <span>threshold</span>
-    <span>0.4（3帯域すべて超えたら判定）</span>
-  </div>
-  <div class="row">
     <span>クールダウン</span>
     <span>5.0 秒</span>
   </div>
   <div class="row">
     <span>マイクゲイン</span>
-    <span>1.0 倍</span>
+    <span>2.0 倍</span>
   </div>
   <div class="row">
     <span>ローカット</span>
@@ -152,40 +218,23 @@
   </div>
 </div>
 
-<div class="panel">
-  <div class="label">カウンター</div>
-  <div class="counter" id="count">0</div>
-  <div class="flex-row">
-    <button id="manualPlus" class="small">＋1（手動）</button>
-    <button id="manualMinus" class="small secondary">−1（手動）</button>
-  </div>
-  <button id="clearAll" class="danger">オールクリア（カウンター＋ログ）</button>
-</div>
-
-<div class="panel">
-  <div class="label">カウントログ</div>
-  <textarea id="log" readonly></textarea>
-  <button id="saveLog" class="secondary">ログをファイル保存</button>
-</div>
-
 <script>
 /*** 周波数帯設定 ***/
-const LOW_MIN  = 700;   // 基音帯（727〜797Hzをカバー）
+const LOW_MIN  = 700;
 const LOW_MAX  = 820;
-const MID_MIN  = 1500;  // 1547Hz帯
+const MID_MIN  = 1500;
 const MID_MAX  = 1600;
-const HIGH_MIN = 3600;  // 3773Hz帯
+const HIGH_MIN = 3600;
 const HIGH_MAX = 3920;
 
-/*** 判定・クールダウン ***/
-const THRESHOLD   = 0.4;
+/*** クールダウン ***/
 const COOLDOWN_MS = 5000;
 
 /*** マイク調整パラメータ ***/
-const GAIN_VALUE = 1.0;     // マイクゲイン 1倍
-const HP_FREQ    = 300;     // ローカット 300Hz
-const LP_FREQ    = 6000;    // ハイカット 6000Hz
-const SAMPLE_RATE = 48000;  // サンプリングレート固定
+const GAIN_VALUE  = 2.0;
+const HP_FREQ     = 300;
+const LP_FREQ     = 6000;
+const SAMPLE_RATE = 48000;
 
 /*** 状態管理 ***/
 let audioContext = null;
@@ -215,6 +264,10 @@ const manualMinusBtn = document.getElementById('manualMinus');
 const clearAllBtn = document.getElementById('clearAll');
 const saveLogBtn = document.getElementById('saveLog');
 
+const thLowInput  = document.getElementById('thLow');
+const thMidInput  = document.getElementById('thMid');
+const thHighInput = document.getElementById('thHigh');
+
 /*** 時計 ***/
 function updateClock() {
   const now = new Date();
@@ -227,9 +280,12 @@ setInterval(updateClock, 500);
 updateClock();
 
 /*** ローカルストレージ ***/
-const STORAGE_KEY_COUNT = 'bellCounter_full_count';
-const STORAGE_KEY_LOG   = 'bellCounter_full_log';
-const STORAGE_KEY_MIC   = 'bellCounter_full_micAutoStart';
+const STORAGE_KEY_COUNT   = 'bellCounter_full2_count';
+const STORAGE_KEY_LOG     = 'bellCounter_full2_log';
+const STORAGE_KEY_MIC     = 'bellCounter_full2_micAutoStart';
+const STORAGE_KEY_TH_LOW  = 'bellCounter_full2_thLow';
+const STORAGE_KEY_TH_MID  = 'bellCounter_full2_thMid';
+const STORAGE_KEY_TH_HIGH = 'bellCounter_full2_thHigh';
 
 function loadState() {
   const savedCount = localStorage.getItem(STORAGE_KEY_COUNT);
@@ -244,12 +300,22 @@ function loadState() {
       logEntries = [];
     }
   }
+  const sLow  = localStorage.getItem(STORAGE_KEY_TH_LOW);
+  const sMid  = localStorage.getItem(STORAGE_KEY_TH_MID);
+  const sHigh = localStorage.getItem(STORAGE_KEY_TH_HIGH);
+  if (sLow  !== null) thLowInput.value  = sLow;
+  if (sMid  !== null) thMidInput.value  = sMid;
+  if (sHigh !== null) thHighInput.value = sHigh;
+
   renderState();
 }
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY_COUNT, String(count));
   localStorage.setItem(STORAGE_KEY_LOG, JSON.stringify(logEntries));
+  localStorage.setItem(STORAGE_KEY_TH_LOW,  thLowInput.value);
+  localStorage.setItem(STORAGE_KEY_TH_MID,  thMidInput.value);
+  localStorage.setItem(STORAGE_KEY_TH_HIGH, thHighInput.value);
 }
 
 function setMicAutoStart(flag) {
@@ -266,16 +332,20 @@ function renderState() {
 }
 
 /*** ログ ***/
-function addLogEntry(type, delta, reason) {
+function addLogEntry(type, delta, reason, levels) {
   const now = new Date();
   const dateStr = now.toLocaleString('ja-JP');
-  const entry = `[${dateStr}] ${type} ${delta > 0 ? '+' : ''}${delta}（合計: ${count}）${reason ? ' - ' + reason : ''}`;
+  let extra = reason ? ' - ' + reason : '';
+  if (levels) {
+    extra += ` LOW:${levels.low.toFixed(3)} MID:${levels.mid.toFixed(3)} HIGH:${levels.high.toFixed(3)}`;
+  }
+  const entry = `[${dateStr}] ${type} ${delta > 0 ? '+' : ''}${delta}（合計: ${count}）${extra}`;
   logEntries.push(entry);
   renderState();
   saveState();
 }
 
-/*** ビープ音（Web Audioで短いビープ） ***/
+/*** ビープ音 ***/
 function playBeep() {
   try {
     if (!audioContext) return;
@@ -295,13 +365,13 @@ function playBeep() {
 }
 
 /*** 自動カウント ***/
-function autoCount() {
+function autoCount(levels) {
   const now = Date.now();
   if (now - lastCountTime < COOLDOWN_MS) return;
   count++;
   lastCountTime = now;
   playBeep();
-  addLogEntry('自動検出', +1, '3帯域同時検出');
+  addLogEntry('自動検出', +1, '3帯域同時検出', levels);
 }
 
 /*** 手動カウント ***/
@@ -355,6 +425,13 @@ saveLogBtn.addEventListener('click', () => {
   URL.revokeObjectURL(url);
 });
 
+/*** しきい値入力変更時に保存 ***/
+[thLowInput, thMidInput, thHighInput].forEach(el => {
+  el.addEventListener('change', () => {
+    saveState();
+  });
+});
+
 /*** マイク開始 ***/
 async function startMic() {
   if (audioContext && analyzing) return;
@@ -367,7 +444,6 @@ async function startMic() {
     micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const source = audioContext.createMediaStreamSource(micStream);
 
-    // ゲイン＋ローカット＋ハイカット
     const gainNode = audioContext.createGain();
     gainNode.gain.value = GAIN_VALUE;
 
@@ -384,7 +460,6 @@ async function startMic() {
     const bufferLength = analyser.frequencyBinCount;
     dataArray = new Uint8Array(bufferLength);
 
-    // 接続: source -> gain -> highpass -> lowpass -> analyser
     source.connect(gainNode);
     gainNode.connect(hp);
     hp.connect(lp);
@@ -427,7 +502,6 @@ function analyzeLoop() {
 
   analyser.getByteFrequencyData(dataArray);
 
-  // 全体ピーク
   let maxVal = 0;
   let maxIndex = 0;
   for (let i = 0; i < dataArray.length; i++) {
@@ -444,7 +518,6 @@ function analyzeLoop() {
   peakFreqEl.textContent = peakFreq;
   volumeEl.textContent = volume.toFixed(3);
 
-  // 指定帯域のレベル（最大値）
   function bandLevel(minHz, maxHz) {
     let max = 0;
     for (let i = 0; i < dataArray.length; i++) {
@@ -464,11 +537,14 @@ function analyzeLoop() {
   bandMidLevelEl.textContent  = midLevel.toFixed(3);
   bandHighLevelEl.textContent = highLevel.toFixed(3);
 
-  // 3帯域すべて threshold 以上ならカウント
-  if (lowLevel >= THRESHOLD &&
-      midLevel >= THRESHOLD &&
-      highLevel >= THRESHOLD) {
-    autoCount();
+  const thLow  = parseFloat(thLowInput.value)  || 0;
+  const thMid  = parseFloat(thMidInput.value)  || 0;
+  const thHigh = parseFloat(thHighInput.value) || 0;
+
+  if (lowLevel  >= thLow &&
+      midLevel  >= thMid &&
+      highLevel >= thHigh) {
+    autoCount({ low: lowLevel, mid: midLevel, high: highLevel });
   }
 
   requestAnimationFrame(analyzeLoop);
@@ -487,7 +563,6 @@ stopBtn.addEventListener('click', () => {
 loadState();
 stopBtn.disabled = true;
 
-// リロード後もマイク継続（許可済みなら自動開始を試みる）
 window.addEventListener('load', () => {
   if (getMicAutoStart()) {
     startMic();
