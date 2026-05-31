@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>釣り鐘カウンター（3帯域同時判定・スマホ用）</title>
+<title>釣り鐘カウンター（フル調整版・3帯域同時判定）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   body {
@@ -78,7 +78,7 @@
 </style>
 </head>
 <body>
-<h1>釣り鐘カウンター（3帯域同時判定）</h1>
+<h1>釣り鐘カウンター（フル調整・3帯域同時判定）</h1>
 <div id="time"></div>
 
 <div class="panel">
@@ -125,6 +125,7 @@
     <span>レベル</span>
     <span id="bandHighLevel">-</span>
   </div>
+  <hr>
   <div class="row">
     <span>threshold</span>
     <span>0.2（3帯域すべて超えたら判定）</span>
@@ -132,6 +133,22 @@
   <div class="row">
     <span>クールダウン</span>
     <span>5.0 秒</span>
+  </div>
+  <div class="row">
+    <span>マイクゲイン</span>
+    <span>2.0 倍</span>
+  </div>
+  <div class="row">
+    <span>ローカット</span>
+    <span>Highpass 300 Hz</span>
+  </div>
+  <div class="row">
+    <span>ハイカット</span>
+    <span>Lowpass 6000 Hz</span>
+  </div>
+  <div class="row">
+    <span>サンプリングレート</span>
+    <span>48000 Hz 固定</span>
   </div>
 </div>
 
@@ -152,7 +169,7 @@
 </div>
 
 <script>
-/*** 設定値 ***/
+/*** 周波数帯設定 ***/
 const LOW_MIN  = 700;   // 基音帯（727〜797Hzをカバー）
 const LOW_MAX  = 820;
 const MID_MIN  = 1500;  // 1547Hz帯
@@ -160,8 +177,15 @@ const MID_MAX  = 1600;
 const HIGH_MIN = 3600;  // 3773Hz帯
 const HIGH_MAX = 3920;
 
-const THRESHOLD = 0.2;
+/*** 判定・クールダウン ***/
+const THRESHOLD   = 0.2;
 const COOLDOWN_MS = 5000;
+
+/*** マイク調整パラメータ ***/
+const GAIN_VALUE = 2.0;     // マイクゲイン 2倍
+const HP_FREQ    = 300;     // ローカット 300Hz
+const LP_FREQ    = 6000;    // ハイカット 6000Hz
+const SAMPLE_RATE = 48000;  // サンプリングレート固定
 
 /*** 状態管理 ***/
 let audioContext = null;
@@ -203,9 +227,9 @@ setInterval(updateClock, 500);
 updateClock();
 
 /*** ローカルストレージ ***/
-const STORAGE_KEY_COUNT = 'bellCounter3_count';
-const STORAGE_KEY_LOG   = 'bellCounter3_log';
-const STORAGE_KEY_MIC   = 'bellCounter3_micAutoStart';
+const STORAGE_KEY_COUNT = 'bellCounter_full_count';
+const STORAGE_KEY_LOG   = 'bellCounter_full_log';
+const STORAGE_KEY_MIC   = 'bellCounter_full_micAutoStart';
 
 function loadState() {
   const savedCount = localStorage.getItem(STORAGE_KEY_COUNT);
@@ -336,15 +360,36 @@ async function startMic() {
   if (audioContext && analyzing) return;
   try {
     if (!audioContext) {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      audioContext = new (window.AudioContext || window.webkitAudioContext)({
+        sampleRate: SAMPLE_RATE
+      });
     }
     micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const source = audioContext.createMediaStreamSource(micStream);
+
+    // ゲイン＋ローカット＋ハイカット
+    const gainNode = audioContext.createGain();
+    gainNode.gain.value = GAIN_VALUE;
+
+    const hp = audioContext.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = HP_FREQ;
+
+    const lp = audioContext.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = LP_FREQ;
+
     analyser = audioContext.createAnalyser();
     analyser.fftSize = 2048;
     const bufferLength = analyser.frequencyBinCount;
     dataArray = new Uint8Array(bufferLength);
-    source.connect(analyser);
+
+    // 接続: source -> gain -> highpass -> lowpass -> analyser
+    source.connect(gainNode);
+    gainNode.connect(hp);
+    hp.connect(lp);
+    lp.connect(analyser);
+
     micStatusEl.textContent = '動作中';
     startBtn.disabled = true;
     stopBtn.disabled = false;
