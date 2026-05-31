@@ -11,7 +11,7 @@
         h2, h3 { margin: 0 0 5px 0; font-size: 1.1em; }
         
         .header-flex { display: flex; justify-content: space-between; align-items: center; }
-        .counter-display { font-size: 2.2em; font-weight: bold; color: #d32f2f; margin-left: 10px; }
+        .counter-display { font-size: 3.2em; font-weight: bold; color: #d32f2f; margin-left: 10px; }
         
         /* ボタンのデザインと間隔 */
         button { padding: 8px 12px; margin: 2px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; font-size: 13px; font-weight: bold; }
@@ -23,9 +23,9 @@
         /* カウンターボタンの配置 */
         .counter-btn-group { display: flex; align-items: center; gap: 8px; margin-left: 10px; }
         
-        textarea { width: 100%; height: 60px; margin-top: 5px; font-family: monospace; font-size: 11px; resize: none; border: 1px solid #ccc; border-radius: 4px; padding: 4px;}
+        textarea { width: 100%; height: 120px; margin-top: 5px; font-family: monospace; font-size: 14px; resize: none; border: 1px solid #ccc; border-radius: 4px; padding: 4px;}
         
-        .setting-input { width: 50px; text-align: right; padding: 2px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
+        .setting-input { width: 50px; text-align: right; padding: 2px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
         
         /* グリッドレイアウト */
         .grid-header { display: grid; grid-template-columns: 75px 1fr 40px 55px; gap: 4px; font-size: 10px; color: #666; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 4px; text-align: center; }
@@ -33,12 +33,12 @@
         .band-label { font-size: 10px; line-height: 1.2; text-align: left; }
         
         /* レベルメーター */
-        .meter-container { width: 100%; height: 14px; background: #e9ecef; border-radius: 4px; overflow: hidden; position: relative; }
+        .meter-container { width: 100%; height: 28px; background: #e9ecef; border-radius: 4px; overflow: hidden; position: relative; }
         .meter-fill { height: 100%; width: 0%; background: #007bff; transition: width 0.1s, background-color 0.1s; }
         .meter-threshold-line { position: absolute; top: 0; bottom: 0; width: 2px; background: red; z-index: 10; }
         .meter-peak-line { position: absolute; top: 0; bottom: 0; width: 2px; background: green; z-index: 11; display: none; } /* 緑の最高値線 */
         
-        .status-text { font-size: 11px; text-align: right; font-family: monospace; }
+        .status-text { font-size: 22px; text-align: right; font-family: monospace; }
         .hit { color: #28a745; font-weight: bold; }
     </style>
 </head>
@@ -48,7 +48,7 @@
     <div class="panel">
         <div class="header-flex">
             <h2>鐘カウンター</h2>
-            <div id="current-time" style="font-size: 12px; color: #666;">--:--:--</div>
+            <div id="current-time" style="font-size: 24px; color: #666;">--:--:--</div>
         </div>
         
         <div class="header-flex" style="margin-top: 5px;">
@@ -56,18 +56,18 @@
                 <span style="font-size: 12px; font-weight: bold;">回数</span>
                 <span class="counter-display" id="count-value">0</span>
                 <div class="counter-btn-group">
-                    <button class="btn-gray" style="padding: 6px 10px; font-size: 12px;" onclick="changeCount(-1)">−1</button>
-                    <button style="padding: 6px 10px; font-size: 12px;" onclick="changeCount(1)">＋1</button>
+                    <button class="btn-gray" style="padding: 6px 10px; font-size: 22px;" onclick="changeCount(-1)">−1</button>
+                    <button style="padding: 6px 10px; font-size: 22px;" onclick="changeCount(1)">＋1</button>
                 </div>
             </div>
             <div>
                 <!-- オールクリアボタンを右端に分離 -->
-                <button class="btn-red" style="margin-left: 15px;" onclick="resetAll()">オールクリア</button>
+                <button class="btn-red" style="margin-left: 22px;" onclick="resetAll()">クリア</button>
             </div>
         </div>
 
         <div class="header-flex" style="margin-top: 5px; border-top: 1px solid #eee; padding-top: 5px;">
-            <div style="font-size: 12px; font-weight: bold;">
+            <div style="font-size: 22px; font-weight: bold;">
                 マイク: <span id="mic-status" style="color: gray;">停止中</span>
             </div>
             <div>
@@ -80,8 +80,8 @@
     <!-- ログパネル -->
     <div class="panel">
         <div class="header-flex">
-            <span style="font-size: 12px; font-weight: bold;">カウントログ</span>
-            <button class="btn-gray" style="padding: 4px 8px; font-size: 10px;" onclick="saveLog()">ログ保存</button>
+            <span style="font-size: 22px; font-weight: bold;">カウントログ</span>
+            <button class="btn-gray" style="padding: 4px 8px; font-size: 12px;" onclick="saveLog()">ログ保存</button>
         </div>
         <textarea id="log-area" readonly></textarea>
     </div>
@@ -93,7 +93,7 @@
             <button class="btn-red" style="padding: 4px 8px; font-size: 10px;" onclick="calibrateNoise()">自動設定(3秒)</button>
         </div>
         
-        <div class="header-flex" style="font-size: 11px; margin-bottom: 10px;">
+        <div class="header-flex" style="font-size: 12px; margin-bottom: 10px;">
             <span>待機: <input type="number" id="set-cooldown" class="setting-input" style="width:40px;" step="0.5" value="5.0">秒</span>
             <span>ゲイン: <input type="number" id="set-gain" class="setting-input" style="width:40px;" step="0.1" value="1.0">倍</span>
         </div>
@@ -113,7 +113,7 @@
                 <div class="meter-peak-line" id="peak-low"></div>
             </div>
             <div class="status-text" id="val-low">0.000</div>
-            <input type="number" id="th-low" class="setting-input" step="0.01" value="0.60">
+            <input type="number" id="th-low" class="setting-input" step="0.01" value="0.75">
         </div>
         
         <div class="band-row">
@@ -124,7 +124,7 @@
                 <div class="meter-peak-line" id="peak-mid"></div>
             </div>
             <div class="status-text" id="val-mid">0.000</div>
-            <input type="number" id="th-mid" class="setting-input" step="0.01" value="0.40">
+            <input type="number" id="th-mid" class="setting-input" step="0.01" value="0.65">
         </div>
         
         <div class="band-row">
@@ -135,7 +135,7 @@
                 <div class="meter-peak-line" id="peak-high"></div>
             </div>
             <div class="status-text" id="val-high">0.000</div>
-            <input type="number" id="th-high" class="setting-input" step="0.01" value="0.30">
+            <input type="number" id="th-high" class="setting-input" step="0.01" value="0.55">
         </div>
         
         <div style="text-align: right; margin-top: 5px;">
@@ -184,7 +184,7 @@
     // ログ追加
     function addLog(message) {
         const now = new Date();
-        const timeStr = `${now.getMonth()+1}/${now.getDate()} ${now.toLocaleTimeString()}`;
+        const timeStr = `${now.toLocaleTimeString()}`;
         const logArea = document.getElementById('log-area');
         logArea.value += `[${timeStr}] ${message}\n`;
         logArea.scrollTop = logArea.scrollHeight;
