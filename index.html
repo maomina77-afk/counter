@@ -2,82 +2,190 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>釣り鐘カウンター（3773Hz判定）</title>
+<title>釣り鐘カウンター（倍音同時判定・スマホ用）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-  body { font-family: system-ui, sans-serif; margin: 10px; }
-  h1 { font-size: 20px; margin-bottom: 4px; }
-  #time { font-size: 18px; margin-bottom: 10px; }
-  .panel { border: 1px solid #ccc; padding: 8px; margin-bottom: 8px; }
-  .label { font-weight: bold; }
-  button { margin: 2px; padding: 4px 8px; }
-  #log { width: 100%; height: 150px; font-size: 12px; }
-  .counter { font-size: 32px; font-weight: bold; }
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin: 6px;
+    background: #f7f7f7;
+  }
+  h1 {
+    font-size: 18px;
+    margin: 4px 0;
+    text-align: center;
+  }
+  #time {
+    font-size: 16px;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .panel {
+    background: #fff;
+    border-radius: 6px;
+    padding: 6px;
+    margin-bottom: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+  .label {
+    font-weight: bold;
+    font-size: 13px;
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin: 2px 0;
+  }
+  button {
+    width: 100%;
+    padding: 8px;
+    margin: 3px 0;
+    font-size: 14px;
+    border-radius: 6px;
+    border: none;
+    background: #1976d2;
+    color: #fff;
+  }
+  button.secondary {
+    background: #555;
+  }
+  button.danger {
+    background: #c62828;
+  }
+  button.small {
+    width: 49%;
+    font-size: 13px;
+    padding: 6px;
+  }
+  .counter {
+    font-size: 32px;
+    font-weight: bold;
+    text-align: center;
+    margin: 4px 0;
+  }
+  #log {
+    width: 100%;
+    height: 140px;
+    font-size: 11px;
+    box-sizing: border-box;
+  }
+  .flex-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 2%;
+  }
 </style>
 </head>
 <body>
-<h1>釣り鐘カウンター（3773Hz 判定）</h1>
+<h1>釣り鐘カウンター（倍音同時判定）</h1>
 <div id="time"></div>
 
 <div class="panel">
-  <div><span class="label">マイク状態:</span> <span id="micStatus">未開始</span></div>
+  <div class="row">
+    <span class="label">マイク状態</span>
+    <span id="micStatus">未開始</span>
+  </div>
   <button id="startBtn">マイク開始</button>
+  <button id="stopBtn" class="secondary">マイク停止</button>
 </div>
 
 <div class="panel">
-  <div><span class="label">現在のピーク周波数:</span> <span id="peakFreq">-</span> Hz</div>
-  <div><span class="label">現在の音量:</span> <span id="volume">-</span></div>
-  <div><span class="label">判定帯域:</span> 3600〜3920 Hz</div>
-  <div><span class="label">threshold:</span> 0.1</div>
-  <div><span class="label">クールダウン:</span> 5.0 秒</div>
+  <div class="label">リアルタイム解析</div>
+  <div class="row">
+    <span>ピーク周波数</span>
+    <span><span id="peakFreq">-</span> Hz</span>
+  </div>
+  <div class="row">
+    <span>全体音量</span>
+    <span><span id="volume">-</span></span>
+  </div>
+  <hr>
+  <div class="row">
+    <span>倍音1（3773Hz帯）</span>
+    <span>3600〜3920 Hz</span>
+  </div>
+  <div class="row">
+    <span>レベル</span>
+    <span id="band1Level">-</span>
+  </div>
+  <div class="row">
+    <span>倍音2（1547Hz帯）</span>
+    <span>1500〜1600 Hz</span>
+  </div>
+  <div class="row">
+    <span>レベル</span>
+    <span id="band2Level">-</span>
+  </div>
+  <div class="row">
+    <span>threshold</span>
+    <span>0.2（両方超えたら判定）</span>
+  </div>
+  <div class="row">
+    <span>クールダウン</span>
+    <span>5.0 秒</span>
+  </div>
 </div>
 
 <div class="panel">
   <div class="label">カウンター</div>
   <div class="counter" id="count">0</div>
-  <button id="manualPlus">＋1（手動）</button>
-  <button id="manualMinus">−1（手動）</button>
-  <button id="clearAll">オールクリア</button>
+  <div class="flex-row">
+    <button id="manualPlus" class="small">＋1（手動）</button>
+    <button id="manualMinus" class="small secondary">−1（手動）</button>
+  </div>
+  <button id="clearAll" class="danger">オールクリア（カウンター＋ログ）</button>
 </div>
 
 <div class="panel">
   <div class="label">カウントログ</div>
   <textarea id="log" readonly></textarea>
+  <button id="saveLog" class="secondary">ログをファイル保存</button>
 </div>
 
 <audio id="beep">
+  <!-- 短い無音に近いWAV（ブラウザが音声扱いするためのダミー） -->
   <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAAAA" type="audio/wav">
 </audio>
 
 <script>
 /*** 設定値 ***/
-const TARGET_MIN = 3600;
-const TARGET_MAX = 3920;
-const THRESHOLD = 0.1;
+const FREQ1_MIN = 3600;  // 3773Hz帯
+const FREQ1_MAX = 3920;
+const FREQ2_MIN = 1500;  // 1547Hz帯
+const FREQ2_MAX = 1600;
+const THRESHOLD = 0.2;
 const COOLDOWN_MS = 5000;
 
 /*** 状態管理 ***/
 let audioContext = null;
 let analyser = null;
 let dataArray = null;
+let micStream = null;
 let lastCountTime = 0;
 let count = 0;
 let logEntries = [];
+let analyzing = false;
 
-/*** DOM 参照 ***/
+/*** DOM ***/
 const timeEl = document.getElementById('time');
 const micStatusEl = document.getElementById('micStatus');
 const peakFreqEl = document.getElementById('peakFreq');
 const volumeEl = document.getElementById('volume');
+const band1LevelEl = document.getElementById('band1Level');
+const band2LevelEl = document.getElementById('band2Level');
 const countEl = document.getElementById('count');
 const logEl = document.getElementById('log');
 const beepEl = document.getElementById('beep');
 
 const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
 const manualPlusBtn = document.getElementById('manualPlus');
 const manualMinusBtn = document.getElementById('manualMinus');
 const clearAllBtn = document.getElementById('clearAll');
+const saveLogBtn = document.getElementById('saveLog');
 
-/*** 時刻表示 ***/
+/*** 時計 ***/
 function updateClock() {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, '0');
@@ -91,6 +199,7 @@ updateClock();
 /*** ローカルストレージ ***/
 const STORAGE_KEY_COUNT = 'bellCounter_count';
 const STORAGE_KEY_LOG = 'bellCounter_log';
+const STORAGE_KEY_MIC = 'bellCounter_micAutoStart';
 
 function loadState() {
   const savedCount = localStorage.getItem(STORAGE_KEY_COUNT);
@@ -113,12 +222,20 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY_LOG, JSON.stringify(logEntries));
 }
 
+function setMicAutoStart(flag) {
+  localStorage.setItem(STORAGE_KEY_MIC, flag ? '1' : '0');
+}
+
+function getMicAutoStart() {
+  return localStorage.getItem(STORAGE_KEY_MIC) === '1';
+}
+
 function renderState() {
   countEl.textContent = count;
   logEl.value = logEntries.join('\n');
 }
 
-/*** ログ追加 ***/
+/*** ログ ***/
 function addLogEntry(type, delta, reason) {
   const now = new Date();
   const dateStr = now.toLocaleString('ja-JP');
@@ -128,25 +245,33 @@ function addLogEntry(type, delta, reason) {
   saveState();
 }
 
-/*** ビープ音 ***/
+/*** ビープ音（Web Audioで短いビープ） ***/
 function playBeep() {
   try {
-    beepEl.currentTime = 0;
-    beepEl.play();
+    if (!audioContext) return;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.15);
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.15);
   } catch (e) {
-    console.warn('ビープ再生失敗:', e);
+    console.warn('ビープ失敗:', e);
   }
 }
 
-/*** 自動検出カウント ***/
+/*** 自動カウント ***/
 function autoCount() {
   const now = Date.now();
   if (now - lastCountTime < COOLDOWN_MS) return;
-
   count++;
   lastCountTime = now;
   playBeep();
-  addLogEntry('自動検出', +1, '3773Hz帯検出');
+  addLogEntry('自動検出', +1, '倍音2つ同時検出');
 }
 
 /*** 手動カウント ***/
@@ -159,9 +284,7 @@ manualPlusBtn.addEventListener('click', () => {
 
 manualMinusBtn.addEventListener('click', () => {
   if (!confirm('カウンターを -1 しますか？')) return;
-  if (count > 0) {
-    count--;
-  }
+  if (count > 0) count--;
   playBeep();
   addLogEntry('手動操作', -1, 'ユーザー操作');
 });
@@ -172,16 +295,45 @@ clearAllBtn.addEventListener('click', () => {
   count = 0;
   logEntries = [];
   playBeep();
-  addLogEntry('システム', 0, 'オールクリア実行');
+  renderState();
+  saveState();
+});
+
+/*** ログをファイル保存 ***/
+saveLogBtn.addEventListener('click', () => {
+  if (logEntries.length === 0) {
+    alert('ログがありません。');
+    return;
+  }
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  const filename = `bell_log_${y}${m}${d}_${hh}${mm}${ss}.txt`;
+
+  const blob = new Blob([logEntries.join('\n')], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 });
 
 /*** マイク開始 ***/
-startBtn.addEventListener('click', async () => {
-  if (audioContext) return;
+async function startMic() {
+  if (audioContext && analysing) return;
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const source = audioContext.createMediaStreamSource(stream);
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const source = audioContext.createMediaStreamSource(micStream);
     analyser = audioContext.createAnalyser();
     analyser.fftSize = 2048;
     const bufferLength = analyser.frequencyBinCount;
@@ -189,20 +341,42 @@ startBtn.addEventListener('click', async () => {
     source.connect(analyser);
     micStatusEl.textContent = '動作中';
     startBtn.disabled = true;
+    stopBtn.disabled = false;
+    analyzing = true;
+    setMicAutoStart(true);
     analyzeLoop();
   } catch (e) {
     console.error(e);
     micStatusEl.textContent = 'エラー（マイク許可を確認）';
+    analyzing = false;
+    setMicAutoStart(false);
   }
-});
+}
+
+/*** マイク停止 ***/
+function stopMic() {
+  try {
+    if (micStream) {
+      micStream.getTracks().forEach(t => t.stop());
+      micStream = null;
+    }
+  } catch (e) {
+    console.warn(e);
+  }
+  analysing = false;
+  micStatusEl.textContent = '停止中';
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+  setMicAutoStart(false);
+}
 
 /*** 解析ループ ***/
 function analyzeLoop() {
-  if (!analyser || !audioContext) return;
+  if (!analyser || !audioContext || !analyzing) return;
 
   analyser.getByteFrequencyData(dataArray);
 
-  // 最大振幅とその周波数を求める
+  // 全体ピーク
   let maxVal = 0;
   let maxIndex = 0;
   for (let i = 0; i < dataArray.length; i++) {
@@ -211,29 +385,60 @@ function analyzeLoop() {
       maxIndex = i;
     }
   }
-
   const nyquist = audioContext.sampleRate / 2;
   const freqPerBin = nyquist / dataArray.length;
   const peakFreq = Math.round(maxIndex * freqPerBin);
-  const volume = maxVal / 255; // 0〜1 に正規化
+  const volume = maxVal / 255;
 
   peakFreqEl.textContent = peakFreq;
   volumeEl.textContent = volume.toFixed(3);
 
-  // 判定帯域＆threshold
-  if (
-    peakFreq >= TARGET_MIN &&
-    peakFreq <= TARGET_MAX &&
-    volume >= THRESHOLD
-  ) {
+  // 指定帯域のレベル（最大値）
+  function bandLevel(minHz, maxHz) {
+    let max = 0;
+    for (let i = 0; i < dataArray.length; i++) {
+      const f = i * freqPerBin;
+      if (f >= minHz && f <= maxHz) {
+        if (dataArray[i] > max) max = dataArray[i];
+      }
+    }
+    return max / 255;
+  }
+
+  const level1 = bandLevel(FREQ1_MIN, FREQ1_MAX);
+  const level2 = bandLevel(FREQ2_MIN, FREQ2_MAX);
+
+  band1LevelEl.textContent = level1.toFixed(3);
+  band2LevelEl.textContent = level2.toFixed(3);
+
+  // 倍音2つ同時に threshold 超えたらカウント
+  if (level1 >= THRESHOLD && level2 >= THRESHOLD) {
     autoCount();
   }
 
   requestAnimationFrame(analyzeLoop);
 }
 
+/*** ボタンイベント ***/
+startBtn.addEventListener('click', () => {
+  startMic();
+});
+
+stopBtn.addEventListener('click', () => {
+  stopMic();
+});
+
 /*** 初期化 ***/
 loadState();
+stopBtn.disabled = true;
+
+// リロード後もマイク継続（許可済みなら自動開始を試みる）
+window.addEventListener('load', () => {
+  if (getMicAutoStart()) {
+    // モバイルではユーザー操作が必要な場合もあるが、可能な限り自動再開を試みる
+    startMic();
+  }
+});
 </script>
 </body>
 </html>
