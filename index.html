@@ -150,10 +150,13 @@
 
 <script>
 /*** 設定値 ***/
-const FREQ1_MIN = 3600;  // 3773Hz帯
-const FREQ1_MAX = 3920;
-const FREQ2_MIN = 1500;  // 1547Hz帯
-const FREQ2_MAX = 1600;
+const LOW_MIN  = 700;   // 低音部（727〜797Hzをカバー）
+const LOW_MAX  = 820;
+const MID_MIN  = 1500;  // 1547Hz帯
+const MID_MAX  = 1600;
+const HIGH_MIN = 3600;  // 3773Hz帯
+const HIGH_MAX = 3920;
+
 const THRESHOLD = 0.2;
 const COOLDOWN_MS = 5000;
 
@@ -394,27 +397,33 @@ function analyzeLoop() {
   volumeEl.textContent = volume.toFixed(3);
 
   // 指定帯域のレベル（最大値）
-  function bandLevel(minHz, maxHz) {
-    let max = 0;
-    for (let i = 0; i < dataArray.length; i++) {
-      const f = i * freqPerBin;
-      if (f >= minHz && f <= maxHz) {
-        if (dataArray[i] > max) max = dataArray[i];
-      }
+function bandLevel(minHz, maxHz) {
+  let max = 0;
+  for (let i = 0; i < dataArray.length; i++) {
+    const f = i * freqPerBin;
+    if (f >= minHz && f <= maxHz) {
+      if (dataArray[i] > max) max = dataArray[i];
     }
-    return max / 255;
   }
+  return max / 255;
+}
 
-  const level1 = bandLevel(FREQ1_MIN, FREQ1_MAX);
-  const level2 = bandLevel(FREQ2_MIN, FREQ2_MAX);
+const lowLevel  = bandLevel(LOW_MIN,  LOW_MAX);
+const midLevel  = bandLevel(MID_MIN,  MID_MAX);
+const highLevel = bandLevel(HIGH_MIN, HIGH_MAX);
 
-  band1LevelEl.textContent = level1.toFixed(3);
-  band2LevelEl.textContent = level2.toFixed(3);
+// 表示用（必要なら）
+bandLowLevelEl.textContent  = lowLevel.toFixed(3);
+bandMidLevelEl.textContent  = midLevel.toFixed(3);
+bandHighLevelEl.textContent = highLevel.toFixed(3);
 
-  // 倍音2つ同時に threshold 超えたらカウント
-  if (level1 >= THRESHOLD && level2 >= THRESHOLD) {
-    autoCount();
-  }
+// ★ 判定条件：3帯域すべてが threshold 以上
+if (lowLevel >= THRESHOLD &&
+    midLevel >= THRESHOLD &&
+    highLevel >= THRESHOLD) {
+  autoCount();
+}
+
 
   requestAnimationFrame(analyzeLoop);
 }
