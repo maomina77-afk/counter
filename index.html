@@ -1,184 +1,239 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>カウンター＆ログ</title>
-  <style>
-    body { font-family: system-ui, sans-serif; text-align: center; margin-top: 60px; }
-
-    /* ★ 2倍サイズ ★ */
-    #clock { font-size: 10rem; margin-bottom: 60px; }
-    #counterDisplay { font-size: 16rem; font-weight: bold; margin: 60px 0; }
-
-    button {
-      font-size: 6rem;
-      padding: 60px 120px;
-      margin: 40px;
-      border-radius: 40px;
-      border: none;
-      cursor: pointer;
-    }
-
-    #upBtn { background: #4caf50; color: #fff; }
-    #downBtn { background: #f44336; color: #fff; }
-
-    #downloadLog, #clearLog {
-      font-size: 3rem;
-      padding: 20px 40px;
-      margin-top: 40px;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>釣り鐘カウンター（3773Hz判定）</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 10px; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  #time { font-size: 18px; margin-bottom: 10px; }
+  .panel { border: 1px solid #ccc; padding: 8px; margin-bottom: 8px; }
+  .label { font-weight: bold; }
+  button { margin: 2px; padding: 4px 8px; }
+  #log { width: 100%; height: 150px; font-size: 12px; }
+  .counter { font-size: 32px; font-weight: bold; }
+</style>
 </head>
 <body>
+<h1>釣り鐘カウンター（3773Hz 判定）</h1>
+<div id="time"></div>
 
-  <div id="clock"></div>
+<div class="panel">
+  <div><span class="label">マイク状態:</span> <span id="micStatus">未開始</span></div>
+  <button id="startBtn">マイク開始</button>
+</div>
 
-  <div id="counterDisplay">0</div>
+<div class="panel">
+  <div><span class="label">現在のピーク周波数:</span> <span id="peakFreq">-</span> Hz</div>
+  <div><span class="label">現在の音量:</span> <span id="volume">-</span></div>
+  <div><span class="label">判定帯域:</span> 3600〜3920 Hz</div>
+  <div><span class="label">threshold:</span> 0.1</div>
+  <div><span class="label">クールダウン:</span> 5.0 秒</div>
+</div>
 
-  <div>
-    <button id="upBtn">＋１</button>
-    <button id="downBtn">－１</button>
-  </div>
+<div class="panel">
+  <div class="label">カウンター</div>
+  <div class="counter" id="count">0</div>
+  <button id="manualPlus">＋1（手動）</button>
+  <button id="manualMinus">−1（手動）</button>
+  <button id="clearAll">オールクリア</button>
+</div>
 
-  <div>
-    <button id="downloadLog">ログを保存</button>
-    <button id="clearLog">オールクリア</button>
-  </div>
+<div class="panel">
+  <div class="label">カウントログ</div>
+  <textarea id="log" readonly></textarea>
+</div>
 
-  <script>
-    // ===== 現在時刻表示 =====
-    function updateClock() {
-      const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      const ss = String(now.getSeconds()).padStart(2, '0');
-      document.getElementById('clock').textContent = `${hh}:${mm}:${ss}`;
+<audio id="beep">
+  <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAAAA" type="audio/wav">
+</audio>
+
+<script>
+/*** 設定値 ***/
+const TARGET_MIN = 3600;
+const TARGET_MAX = 3920;
+const THRESHOLD = 0.1;
+const COOLDOWN_MS = 5000;
+
+/*** 状態管理 ***/
+let audioContext = null;
+let analyser = null;
+let dataArray = null;
+let lastCountTime = 0;
+let count = 0;
+let logEntries = [];
+
+/*** DOM 参照 ***/
+const timeEl = document.getElementById('time');
+const micStatusEl = document.getElementById('micStatus');
+const peakFreqEl = document.getElementById('peakFreq');
+const volumeEl = document.getElementById('volume');
+const countEl = document.getElementById('count');
+const logEl = document.getElementById('log');
+const beepEl = document.getElementById('beep');
+
+const startBtn = document.getElementById('startBtn');
+const manualPlusBtn = document.getElementById('manualPlus');
+const manualMinusBtn = document.getElementById('manualMinus');
+const clearAllBtn = document.getElementById('clearAll');
+
+/*** 時刻表示 ***/
+function updateClock() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  timeEl.textContent = `現在時刻：${hh}:${mm}:${ss}`;
+}
+setInterval(updateClock, 500);
+updateClock();
+
+/*** ローカルストレージ ***/
+const STORAGE_KEY_COUNT = 'bellCounter_count';
+const STORAGE_KEY_LOG = 'bellCounter_log';
+
+function loadState() {
+  const savedCount = localStorage.getItem(STORAGE_KEY_COUNT);
+  if (savedCount !== null) {
+    count = parseInt(savedCount, 10) || 0;
+  }
+  const savedLog = localStorage.getItem(STORAGE_KEY_LOG);
+  if (savedLog) {
+    try {
+      logEntries = JSON.parse(savedLog);
+    } catch {
+      logEntries = [];
     }
-    setInterval(updateClock, 500);
-    updateClock();
+  }
+  renderState();
+}
 
-    // ===== localStorage キー =====
-    const COUNT_KEY = "shared_counter_v1";
-    const LOG_KEY = "shared_counter_log_v1";
+function saveState() {
+  localStorage.setItem(STORAGE_KEY_COUNT, String(count));
+  localStorage.setItem(STORAGE_KEY_LOG, JSON.stringify(logEntries));
+}
 
-    // ===== カウンター値 =====
-    let count = 0;
+function renderState() {
+  countEl.textContent = count;
+  logEl.value = logEntries.join('\n');
+}
 
-    // ===== ログ =====
-    let logs = [];
+/*** ログ追加 ***/
+function addLogEntry(type, delta, reason) {
+  const now = new Date();
+  const dateStr = now.toLocaleString('ja-JP');
+  const entry = `[${dateStr}] ${type} ${delta > 0 ? '+' : ''}${delta}（合計: ${count}）${reason ? ' - ' + reason : ''}`;
+  logEntries.push(entry);
+  renderState();
+  saveState();
+}
 
-    // ===== 復元 =====
-    function loadState() {
-      const c = localStorage.getItem(COUNT_KEY);
-      if (c !== null) count = Number(c);
+/*** ビープ音 ***/
+function playBeep() {
+  try {
+    beepEl.currentTime = 0;
+    beepEl.play();
+  } catch (e) {
+    console.warn('ビープ再生失敗:', e);
+  }
+}
 
-      const l = localStorage.getItem(LOG_KEY);
-      if (l) logs = JSON.parse(l);
+/*** 自動検出カウント ***/
+function autoCount() {
+  const now = Date.now();
+  if (now - lastCountTime < COOLDOWN_MS) return;
 
-      render();
+  count++;
+  lastCountTime = now;
+  playBeep();
+  addLogEntry('自動検出', +1, '3773Hz帯検出');
+}
+
+/*** 手動カウント ***/
+manualPlusBtn.addEventListener('click', () => {
+  if (!confirm('カウンターを +1 しますか？')) return;
+  count++;
+  playBeep();
+  addLogEntry('手動操作', +1, 'ユーザー操作');
+});
+
+manualMinusBtn.addEventListener('click', () => {
+  if (!confirm('カウンターを -1 しますか？')) return;
+  if (count > 0) {
+    count--;
+  }
+  playBeep();
+  addLogEntry('手動操作', -1, 'ユーザー操作');
+});
+
+/*** オールクリア ***/
+clearAllBtn.addEventListener('click', () => {
+  if (!confirm('カウンターとログをすべてクリアしますか？')) return;
+  count = 0;
+  logEntries = [];
+  playBeep();
+  addLogEntry('システム', 0, 'オールクリア実行');
+});
+
+/*** マイク開始 ***/
+startBtn.addEventListener('click', async () => {
+  if (audioContext) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioContext.createMediaStreamSource(stream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 2048;
+    const bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+    source.connect(analyser);
+    micStatusEl.textContent = '動作中';
+    startBtn.disabled = true;
+    analyzeLoop();
+  } catch (e) {
+    console.error(e);
+    micStatusEl.textContent = 'エラー（マイク許可を確認）';
+  }
+});
+
+/*** 解析ループ ***/
+function analyzeLoop() {
+  if (!analyser || !audioContext) return;
+
+  analyser.getByteFrequencyData(dataArray);
+
+  // 最大振幅とその周波数を求める
+  let maxVal = 0;
+  let maxIndex = 0;
+  for (let i = 0; i < dataArray.length; i++) {
+    if (dataArray[i] > maxVal) {
+      maxVal = dataArray[i];
+      maxIndex = i;
     }
+  }
 
-    function saveState() {
-      localStorage.setItem(COUNT_KEY, count);
-      localStorage.setItem(LOG_KEY, JSON.stringify(logs));
-    }
+  const nyquist = audioContext.sampleRate / 2;
+  const freqPerBin = nyquist / dataArray.length;
+  const peakFreq = Math.round(maxIndex * freqPerBin);
+  const volume = maxVal / 255; // 0〜1 に正規化
 
-    function render() {
-      document.getElementById("counterDisplay").textContent = count;
-    }
+  peakFreqEl.textContent = peakFreq;
+  volumeEl.textContent = volume.toFixed(3);
 
-    loadState();
+  // 判定帯域＆threshold
+  if (
+    peakFreq >= TARGET_MIN &&
+    peakFreq <= TARGET_MAX &&
+    volume >= THRESHOLD
+  ) {
+    autoCount();
+  }
 
-    // ===== 音 =====
-    function playBeep() {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+  requestAnimationFrame(analyzeLoop);
+}
 
-      osc.type = "sine";
-      osc.frequency.value = 880;
-      gain.gain.value = 0.25;
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.15);
-    }
-
-    // ===== バイブ =====
-    function vibrate() {
-      if (navigator.vibrate) navigator.vibrate(150);
-    }
-
-    // ===== ログ追加 =====
-    function addLog(type) {
-      const now = new Date();
-      const yyyy = now.getFullYear();
-      const MM = String(now.getMonth() + 1).padStart(2, '0');
-      const dd = String(now.getDate()).padStart(2, '0');
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      const ss = String(now.getSeconds()).padStart(2, '0');
-
-      logs.push(`${yyyy}-${MM}-${dd} ${hh}:${mm}:${ss}, ${type}, count=${count}`);
-      saveState();
-    }
-
-    // ===== UP ボタン =====
-    document.getElementById("upBtn").addEventListener("click", () => {
-      count += 1;
-      render();
-      addLog("UP");
-      playBeep();
-      vibrate();
-    });
-
-    // ===== DOWN ボタン（確認ダイアログ付き） =====
-    document.getElementById("downBtn").addEventListener("click", () => {
-
-      // ★ ここが今回の追加部分 ★
-      if (!confirm("カウントを減らします。よろしいですか？")) {
-        return; // キャンセルしたら何もしない
-      }
-
-      count -= 1;
-      render();
-      addLog("DOWN");
-      playBeep();
-      vibrate();
-    });
-
-    // ===== ログ保存 =====
-    document.getElementById("downloadLog").addEventListener("click", () => {
-      const blob = new Blob([logs.join("\n")], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-
-      const now = new Date();
-      const fname = `counter_log_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.txt`;
-
-      a.download = fname;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-
-    // ===== ログクリア（確認付き） =====
-    document.getElementById("clearLog").addEventListener("click", () => {
-      if (confirm("本当にログを削除しますか？\nこの操作は元に戻せません。")) {
-        logs = [];
-        saveState();
-        alert("ログを削除しました。");
-        count = 0;
-        render();
-      playBeep();
-      vibrate();
-      }
-    });
-
-    window.addEventListener("beforeunload", saveState);
-  </script>
-
+/*** 初期化 ***/
+loadState();
+</script>
 </body>
 </html>
