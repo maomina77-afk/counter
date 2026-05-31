@@ -2,118 +2,124 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>鐘カウンター（改良版）</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>鐘カウンター（スマホ特化版）</title>
     <style>
-        body { font-family: sans-serif; background: #f4f4f9; color: #333; padding: 20px; max-width: 800px; margin: 0 auto; }
-        .panel { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        * { box-sizing: border-box; }
+        body { font-family: sans-serif; background: #f4f4f9; color: #333; padding: 6px; margin: 0; font-size: 14px; }
+        .panel { background: #fff; padding: 10px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        h2, h3 { margin: 0 0 5px 0; font-size: 1.1em; }
+        
         .header-flex { display: flex; justify-content: space-between; align-items: center; }
-        .counter-display { font-size: 3em; font-weight: bold; color: #d32f2f; }
-        button { padding: 8px 16px; margin: 4px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; font-size: 14px; }
-        button:hover { background: #0056b3; }
+        .counter-display { font-size: 2.2em; font-weight: bold; color: #d32f2f; margin-left: 10px; }
+        
+        button { padding: 6px 10px; margin: 2px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; font-size: 12px; font-weight: bold; }
+        button:active { background: #0056b3; }
         button.btn-red { background: #dc3545; }
         button.btn-gray { background: #6c757d; }
-        textarea { width: 100%; height: 100px; margin-top: 10px; font-family: monospace; resize: vertical; }
-        .flex-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 8px 0; }
-        .flex-row:last-child { border-bottom: none; }
+        button:disabled { opacity: 0.5; }
         
-        /* レベルメーターのスタイル */
-        .meter-container { width: 200px; height: 16px; background: #e9ecef; border-radius: 8px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 10px; position: relative; }
+        textarea { width: 100%; height: 60px; margin-top: 5px; font-family: monospace; font-size: 11px; resize: none; border: 1px solid #ccc; border-radius: 4px; padding: 4px;}
+        
+        .setting-input { width: 50px; text-align: right; padding: 2px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
+        
+        /* 1画面に収めるためのグリッドレイアウト */
+        .grid-header { display: grid; grid-template-columns: 75px 1fr 40px 55px; gap: 4px; font-size: 10px; color: #666; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 4px; text-align: center; }
+        .band-row { display: grid; grid-template-columns: 75px 1fr 40px 55px; gap: 4px; align-items: center; margin-bottom: 6px; }
+        .band-label { font-size: 10px; line-height: 1.2; text-align: left; }
+        
+        /* レベルメーター */
+        .meter-container { width: 100%; height: 14px; background: #e9ecef; border-radius: 4px; overflow: hidden; position: relative; }
         .meter-fill { height: 100%; width: 0%; background: #007bff; transition: width 0.1s, background-color 0.1s; }
         .meter-threshold-line { position: absolute; top: 0; bottom: 0; width: 2px; background: red; z-index: 10; }
         
-        .status-text { font-weight: bold; width: 60px; display: inline-block; text-align: right; }
-        .hit { color: #28a745; } /* しきい値を超えたときの色 */
-        .setting-input { width: 70px; text-align: right; margin-left: 10px; }
+        .status-text { font-size: 11px; text-align: right; font-family: monospace; }
+        .hit { color: #28a745; font-weight: bold; }
     </style>
 </head>
 <body>
 
+    <!-- 操作＆ステータスパネル -->
     <div class="panel">
         <div class="header-flex">
-            <h2>鐘カウンター（3帯域解析）</h2>
-            <div id="current-time">--:--:--</div>
+            <h2>鐘カウンター</h2>
+            <div id="current-time" style="font-size: 12px; color: #666;">--:--:--</div>
         </div>
-        <div class="header-flex">
-            <div>
-                <span style="font-size: 1.2em;">カウンター</span>
+        
+        <div class="header-flex" style="margin-top: 5px;">
+            <div style="display: flex; align-items: center;">
+                <span style="font-size: 12px; font-weight: bold;">回数</span>
                 <span class="counter-display" id="count-value">0</span>
             </div>
             <div>
-                <button onclick="changeCount(1)">＋1（手動）</button>
-                <button class="btn-gray" onclick="changeCount(-1)">−1（手動）</button>
-                <button class="btn-red" onclick="resetAll()">オールクリア</button>
+                <button onclick="changeCount(1)">+1</button>
+                <button class="btn-gray" onclick="changeCount(-1)">-1</button>
+                <button class="btn-red" onclick="resetAll()">クリア</button>
+            </div>
+        </div>
+
+        <div class="header-flex" style="margin-top: 5px; border-top: 1px solid #eee; padding-top: 5px;">
+            <div style="font-size: 12px; font-weight: bold;">
+                マイク: <span id="mic-status" style="color: gray;">停止中</span>
+            </div>
+            <div>
+                <button id="btn-start" onclick="startMic()">開始</button>
+                <button id="btn-stop" class="btn-gray" onclick="stopMic()" disabled>停止</button>
             </div>
         </div>
     </div>
 
-    <div class="panel">
-        <strong>カウントログ</strong>
-        <textarea id="log-area" readonly></textarea>
-        <button class="btn-gray" onclick="saveLog()">ログをファイル保存</button>
-    </div>
-
-    <div class="panel">
-        <strong>マイク状態: <span id="mic-status" style="color: gray;">停止中</span></strong>
-        <button id="btn-start" onclick="startMic()">マイク開始</button>
-        <button id="btn-stop" class="btn-gray" onclick="stopMic()" disabled>マイク停止</button>
-    </div>
-
+    <!-- ログパネル（高さを縮小） -->
     <div class="panel">
         <div class="header-flex">
-            <h3>しきい値設定（帯域ごと）</h3>
-            <button class="btn-red" onclick="calibrateNoise()">環境音キャリブレーション(3秒)</button>
+            <span style="font-size: 12px; font-weight: bold;">カウントログ</span>
+            <button class="btn-gray" style="padding: 4px 8px; font-size: 10px;" onclick="saveLog()">ログ保存</button>
         </div>
-        <div class="flex-row">
-            <span>LOW（700〜820 Hz）</span>
-            <input type="number" id="th-low" class="setting-input" step="0.01" value="0.92">
-        </div>
-        <div class="flex-row">
-            <span>MID（1500〜1600 Hz）</span>
-            <input type="number" id="th-mid" class="setting-input" step="0.01" value="0.72">
-        </div>
-        <div class="flex-row">
-            <span>HIGH（3600〜3920 Hz）</span>
-            <input type="number" id="th-high" class="setting-input" step="0.01" value="0.52">
-        </div>
+        <textarea id="log-area" readonly></textarea>
     </div>
 
+    <!-- 解析＆設定統合パネル -->
     <div class="panel">
-        <h3>リアルタイム解析 <span id="calib-msg" style="color:red; font-size:0.8em; display:none;">※環境音測定中...</span></h3>
-        <div class="flex-row">
-            <span>クールダウン（秒）: <input type="number" id="set-cooldown" class="setting-input" step="0.5" value="5.0"></span>
-            <span>マイクゲイン（倍）: <input type="number" id="set-gain" class="setting-input" step="0.1" value="2.0"></span>
+        <div class="header-flex" style="margin-bottom: 5px;">
+            <h3>解析 ＆ しきい値</h3>
+            <button class="btn-red" style="padding: 4px 8px; font-size: 10px;" onclick="calibrateNoise()">自動設定(3秒)</button>
         </div>
-        <hr>
-        <div class="flex-row">
-            <span>LOW（700〜820 Hz）</span>
-            <div>
-                <span class="status-text" id="val-low">0.000</span>
-                <div class="meter-container">
-                    <div class="meter-fill" id="bar-low"></div>
-                    <div class="meter-threshold-line" id="line-low"></div>
-                </div>
-            </div>
+        
+        <div class="header-flex" style="font-size: 11px; margin-bottom: 10px;">
+            <span>待機: <input type="number" id="set-cooldown" class="setting-input" style="width:40px;" step="0.5" value="5.0">秒</span>
+            <span>ゲイン: <input type="number" id="set-gain" class="setting-input" style="width:40px;" step="0.1" value="1.0">倍</span>
         </div>
-        <div class="flex-row">
-            <span>MID（1500〜1600 Hz）</span>
-            <div>
-                <span class="status-text" id="val-mid">0.000</span>
-                <div class="meter-container">
-                    <div class="meter-fill" id="bar-mid"></div>
-                    <div class="meter-threshold-line" id="line-mid"></div>
-                </div>
-            </div>
+
+        <div class="grid-header">
+            <div style="text-align: left;">帯域(Hz)</div>
+            <div>レベルメーター</div>
+            <div>現在値</div>
+            <div>しきい値</div>
         </div>
-        <div class="flex-row">
-            <span>HIGH（3600〜3920 Hz）</span>
-            <div>
-                <span class="status-text" id="val-high">0.000</span>
-                <div class="meter-container">
-                    <div class="meter-fill" id="bar-high"></div>
-                    <div class="meter-threshold-line" id="line-high"></div>
-                </div>
-            </div>
+
+        <div class="band-row">
+            <div class="band-label">LOW<br>700-820</div>
+            <div class="meter-container"><div class="meter-fill" id="bar-low"></div><div class="meter-threshold-line" id="line-low"></div></div>
+            <div class="status-text" id="val-low">0.000</div>
+            <input type="number" id="th-low" class="setting-input" step="0.01" value="0.60">
+        </div>
+        
+        <div class="band-row">
+            <div class="band-label">MID<br>1500-1600</div>
+            <div class="meter-container"><div class="meter-fill" id="bar-mid"></div><div class="meter-threshold-line" id="line-mid"></div></div>
+            <div class="status-text" id="val-mid">0.000</div>
+            <input type="number" id="th-mid" class="setting-input" step="0.01" value="0.40">
+        </div>
+        
+        <div class="band-row">
+            <div class="band-label">HIGH<br>3600-3920</div>
+            <div class="meter-container"><div class="meter-fill" id="bar-high"></div><div class="meter-threshold-line" id="line-high"></div></div>
+            <div class="status-text" id="val-high">0.000</div>
+            <input type="number" id="th-high" class="setting-input" step="0.01" value="0.30">
+        </div>
+        
+        <div style="text-align: right; margin-top: 5px;">
+            <span id="calib-msg" style="color:red; font-size:11px; font-weight:bold; display:none;">※環境音測定中...</span>
         </div>
     </div>
 
@@ -125,7 +131,6 @@
     let lastHitTime = 0;
     let calibMax = { low: 0, mid: 0, high: 0 };
 
-    // 時計の更新
     setInterval(() => {
         const now = new Date();
         document.getElementById('current-time').innerText = now.toLocaleTimeString();
@@ -133,7 +138,7 @@
 
     function addLog(message) {
         const now = new Date();
-        const timeStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${now.toLocaleTimeString()}`;
+        const timeStr = `${now.getMonth()+1}/${now.getDate()} ${now.toLocaleTimeString()}`;
         const logArea = document.getElementById('log-area');
         logArea.value += `[${timeStr}] ${message}\n`;
         logArea.scrollTop = logArea.scrollHeight;
@@ -142,7 +147,7 @@
     function changeCount(delta, isAuto = false) {
         count = Math.max(0, count + delta);
         document.getElementById('count-value').innerText = count;
-        if (!isAuto) addLog(`手動操作 ${delta > 0 ? '+1' : '-1'}（合計: ${count}）`);
+        if (!isAuto) addLog(`手動操作 ${delta > 0 ? '+1' : '-1'} (合計: ${count})`);
     }
 
     function resetAll() {
@@ -177,9 +182,8 @@
             dataArray = new Uint8Array(analyser.frequencyBinCount);
 
             gainNode = audioCtx.createGain();
-            updateGain(); // 初期ゲイン適用
+            updateGain();
 
-            // ローカット(500Hz) & ハイカット(4000Hz)
             const highpass = audioCtx.createBiquadFilter();
             highpass.type = 'highpass';
             highpass.frequency.value = 500;
@@ -201,11 +205,11 @@
             document.getElementById('btn-stop').disabled = false;
 
             document.getElementById('set-gain').addEventListener('input', updateGain);
-            updateGain(); // ゲインの初期適用
+            updateGain();
 
             processAudio();
         } catch (err) {
-            alert("マイクへのアクセスが拒否されたか、エラーが発生しました。\n" + err);
+            alert("マイクエラー:\n" + err);
         }
     }
 
@@ -220,7 +224,6 @@
         document.getElementById('btn-start').disabled = false;
         document.getElementById('btn-stop').disabled = true;
         
-        // メーターリセット
         ['low', 'mid', 'high'].forEach(band => {
             document.getElementById(`bar-${band}`).style.width = '0%';
             document.getElementById(`val-${band}`).innerText = '0.000';
@@ -234,7 +237,6 @@
         }
     }
 
-    // 指定周波数帯域の平均レベル（0.0〜1.0）を計算
     function getBandLevel(minHz, maxHz) {
         const nyquist = audioCtx.sampleRate / 2;
         const minIndex = Math.floor((minHz / nyquist) * analyser.frequencyBinCount);
@@ -245,14 +247,13 @@
             sum += dataArray[i];
         }
         const avg = sum / (maxIndex - minIndex + 1);
-        return avg / 255.0; // 0〜1に正規化
+        return avg / 255.0;
     }
 
     function processAudio() {
         if (!isRunning) return;
         analyser.getByteFrequencyData(dataArray);
 
-        // 帯域レベル取得（Hz範囲を統一）
         const lowLvl = getBandLevel(700, 820);
         const midLvl = getBandLevel(1500, 1600);
         const highLvl = getBandLevel(3600, 3920);
@@ -261,19 +262,16 @@
         const thMid = parseFloat(document.getElementById('th-mid').value);
         const thHigh = parseFloat(document.getElementById('th-high').value);
 
-        // キャリブレーション中の処理
         if (isCalibrating) {
             calibMax.low = Math.max(calibMax.low, lowLvl);
             calibMax.mid = Math.max(calibMax.mid, midLvl);
             calibMax.high = Math.max(calibMax.high, highLvl);
         }
 
-        // UI更新（数値とプログレスバー）
         updateMeter('low', lowLvl, thLow);
         updateMeter('mid', midLvl, thMid);
         updateMeter('high', highLvl, thHigh);
 
-        // 判定ロジック
         const cooldownMs = parseFloat(document.getElementById('set-cooldown').value) * 1000;
         const now = performance.now();
 
@@ -281,7 +279,7 @@
             if (now - lastHitTime > cooldownMs) {
                 count++;
                 document.getElementById('count-value').innerText = count;
-                addLog(`自動検出 +1（合計: ${count}） - LOW:${lowLvl.toFixed(3)} MID:${midLvl.toFixed(3)} HIGH:${highLvl.toFixed(3)}`);
+                addLog(`自動+1(計${count}) L:${lowLvl.toFixed(2)} M:${midLvl.toFixed(2)} H:${highLvl.toFixed(2)}`);
                 lastHitTime = now;
             }
         }
@@ -290,26 +288,22 @@
     }
 
     function updateMeter(band, level, threshold) {
-        // 数値と色
         const valEl = document.getElementById(`val-${band}`);
         valEl.innerText = level.toFixed(3);
         const isHit = level >= threshold;
         valEl.className = isHit ? 'status-text hit' : 'status-text';
 
-        // バーの長さと色
         const barEl = document.getElementById(`bar-${band}`);
         barEl.style.width = Math.min(100, level * 100) + '%';
         barEl.style.backgroundColor = isHit ? '#28a745' : '#007bff';
 
-        // しきい値の赤い線の位置
         const lineEl = document.getElementById(`line-${band}`);
         lineEl.style.left = Math.min(100, threshold * 100) + '%';
     }
 
-    // --- キャリブレーション機能 ---
     function calibrateNoise() {
         if (!isRunning) {
-            alert("先にマイクを開始してください。");
+            alert("マイクを開始してください。");
             return;
         }
         if (isCalibrating) return;
@@ -318,12 +312,10 @@
         calibMax = { low: 0, mid: 0, high: 0 };
         document.getElementById('calib-msg').style.display = 'inline';
         
-        // 3秒間計測して、最大値+マージン(0.1)をしきい値に設定
         setTimeout(() => {
             isCalibrating = false;
             document.getElementById('calib-msg').style.display = 'none';
             
-            // 安全のため上限を0.95にクリップ
             const newLow = Math.min(0.95, calibMax.low + 0.10);
             const newMid = Math.min(0.95, calibMax.mid + 0.10);
             const newHigh = Math.min(0.95, calibMax.high + 0.10);
@@ -332,8 +324,7 @@
             document.getElementById('th-mid').value = newMid.toFixed(2);
             document.getElementById('th-high').value = newHigh.toFixed(2);
             
-            alert("環境音の測定が完了し、しきい値を自動設定しました。\n誤検知が多い場合は微調整してください。");
-            addLog(`キャリブレーション完了（設定値 LOW:${newLow.toFixed(2)} MID:${newMid.toFixed(2)} HIGH:${newHigh.toFixed(2)}）`);
+            addLog(`自動設定 L:${newLow.toFixed(2)} M:${newMid.toFixed(2)} H:${newHigh.toFixed(2)}`);
         }, 3000);
     }
 </script>
