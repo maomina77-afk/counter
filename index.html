@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>釣り鐘カウンター（3帯域・個別しきい値・ログ付き）</title>
+<title>鐘カウンター（3帯域・個別しきい値・ログ付き）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   * {
@@ -101,7 +101,7 @@
 </style>
 </head>
 <body>
-<h1>釣り鐘カウンター（3帯域・しきい値調整版）</h1>
+<h1>鐘カウンター（3帯域・しきい値調整版）</h1>
 <div id="time"></div>
 
 <!-- カウンター -->
@@ -173,7 +173,7 @@
   <hr>
   <div class="row">
     <span>LOW（基音帯）</span>
-    <span>700〜820 Hz</span>
+    <span>700〜800 Hz</span>
   </div>
   <div class="row">
     <span>レベル</span>
@@ -189,7 +189,7 @@
   </div>
   <div class="row">
     <span>HIGH（3773Hz帯）</span>
-    <span>3600〜3920 Hz</span>
+    <span>3700〜3850 Hz</span>
   </div>
   <div class="row">
     <span>レベル</span>
@@ -206,11 +206,11 @@
   </div>
   <div class="row">
     <span>ローカット</span>
-    <span>Highpass 300 Hz</span>
+    <span>Highpass 500 Hz</span>
   </div>
   <div class="row">
     <span>ハイカット</span>
-    <span>Lowpass 6000 Hz</span>
+    <span>Lowpass 4000 Hz</span>
   </div>
   <div class="row">
     <span>サンプリングレート</span>
@@ -221,19 +221,19 @@
 <script>
 /*** 周波数帯設定 ***/
 const LOW_MIN  = 700;
-const LOW_MAX  = 820;
+const LOW_MAX  = 800;
 const MID_MIN  = 1500;
 const MID_MAX  = 1600;
-const HIGH_MIN = 3600;
-const HIGH_MAX = 3920;
+const HIGH_MIN = 3700;
+const HIGH_MAX = 3850;
 
 /*** クールダウン ***/
 const COOLDOWN_MS = 5000;
 
 /*** マイク調整パラメータ ***/
 const GAIN_VALUE  = 2.0;
-const HP_FREQ     = 300;
-const LP_FREQ     = 6000;
+const HP_FREQ     = 500;
+const LP_FREQ     = 4000;
 const SAMPLE_RATE = 48000;
 
 /*** 状態管理 ***/
