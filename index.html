@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>サウンドカウンター v2</title>
+    <title>鐘カウンター PROv3</title>
     <style>
         * { box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #121212; color: #e0e0e0; padding: 6px; margin: 0; font-size: 15px; }
@@ -49,7 +49,7 @@
 <!-- メインコントロール -->
 <div class="panel">
     <div class="header-flex">
-        <h2>サウンドカウンター v2</h2>
+        <h2>鐘カウンター PRO</h2>
         <div id="current-time" style="font-size: 14px; color: #aaa; font-family: monospace;">--:--:--</div>
     </div>
     <div class="header-flex" style="margin-top: 4px;">
@@ -150,6 +150,21 @@
         logArea.value = localStorage.getItem('log') || "";
         logArea.scrollTop = logArea.scrollHeight;
 
+        // ピーク値の復元
+        const savedPeaks = localStorage.getItem('peakLevels');
+        if (savedPeaks) {
+            try {
+                peakLevels = JSON.parse(savedPeaks);
+                ['low', 'mid', 'high'].forEach(band => {
+                    document.getElementById(`peak-${band}`).style.left = Math.min(100, peakLevels[band] * 100) + '%';
+                    document.getElementById(`peak-val-${band}`).innerText = peakLevels[band].toFixed(2);
+                    document.getElementById(`peak-${band}`).style.display = 'block'; // 復元できたら表示
+                });
+            } catch(e) {
+                peakLevels = { low: 0, mid: 0, high: 0 };
+            }
+        }
+
         // 設定の復元
         const loadVal = (id, defaultVal) => {
             const saved = localStorage.getItem(id);
@@ -231,6 +246,7 @@
 
     function resetPeaks() {
         peakLevels = { low: 0, mid: 0, high: 0 };
+        localStorage.removeItem('peakLevels');
         ['low', 'mid', 'high'].forEach(band => {
             document.getElementById(`peak-${band}`).style.left = '0%';
             document.getElementById(`peak-val-${band}`).innerText = '0.00';
@@ -276,7 +292,6 @@
             document.getElementById('btn-start').disabled = true;
             document.getElementById('btn-stop').disabled = false;
             
-            resetPeaks();
             updateThresholdLines();
             if(!isAutoResume) addLog("--- マイク解析開始 ---");
 
@@ -339,9 +354,17 @@
             calibMax.high = Math.max(calibMax.high, levels.high);
         }
 
+        let peakChanged = false;
+
         ['low', 'mid', 'high'].forEach(band => {
             const val = levels[band];
-            peakLevels[band] = Math.max(peakLevels[band], val);
+            
+            // ピーク値の更新判定
+            if (val > peakLevels[band]) {
+                peakLevels[band] = val;
+                peakChanged = true;
+            }
+
             const isHit = val >= th[band];
             const barEl = document.getElementById(`bar-${band}`);
             barEl.style.width = Math.min(100, val * 100) + '%';
@@ -350,6 +373,11 @@
             document.getElementById(`peak-${band}`).style.left = Math.min(100, peakLevels[band] * 100) + '%';
             document.getElementById(`peak-val-${band}`).innerText = peakLevels[band].toFixed(2);
         });
+
+        // ピークが更新された場合のみlocalStorageに保存（負荷軽減）
+        if (peakChanged) {
+            localStorage.setItem('peakLevels', JSON.stringify(peakLevels));
+        }
 
         const cooldownMs = (parseFloat(document.getElementById('set-cooldown').value) || 5) * 1000;
         const now = performance.now();
