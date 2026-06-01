@@ -3,148 +3,375 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>鐘カウンター（高視認性版）</title>
+    <title>鐘カウンター PRO</title>
     <style>
         * { box-sizing: border-box; }
-        body { font-family: sans-serif; background: #f4f4f9; color: #000; padding: 4px; margin: 0; font-size: 16px; }
-        .panel { background: #fff; padding: 6px; border-radius: 8px; margin-bottom: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        h2 { margin: 0 0 2px 0; font-size: 1.2em; }
+        /* PRO仕様のダークテーマ */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #e0e0e0; padding: 6px; margin: 0; font-size: 15px; }
+        .panel { background: #1e1e1e; padding: 10px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #333; box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
+        h2 { margin: 0 0 4px 0; font-size: 1.2em; color: #fff; letter-spacing: 1px; }
         
         .header-flex { display: flex; justify-content: space-between; align-items: center; }
-        .counter-display { font-size: 2.8em; font-weight: bold; color: #d32f2f; margin-left: 8px; }
+        .counter-display { font-size: 2.8em; font-weight: bold; color: #ff5252; margin-left: 10px; font-family: monospace; text-shadow: 0 0 10px rgba(255,82,82,0.4); }
         
-        button { padding: 10px 14px; border: none; border-radius: 6px; cursor: pointer; background: #007bff; color: white; font-size: 14px; font-weight: bold; }
-        button.btn-red { background: #dc3545; }
-        button.btn-gray { background: #6c757d; }
+        button { padding: 10px 14px; border: none; border-radius: 6px; cursor: pointer; background: #0d47a1; color: white; font-size: 14px; font-weight: bold; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        button:active { transform: translateY(2px); box-shadow: none; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+        button.btn-red { background: #b71c1c; }
+        button.btn-gray { background: #424242; border: 1px solid #555; }
+        button.btn-green { background: #1b5e20; }
         
-        /* ログエリアを最大限に拡大 */
-        textarea { width: 100%; height: 120px; font-family: monospace; font-size: 13px; border: 1px solid #999; border-radius: 4px; padding: 4px; }
+        /* ログエリア */
+        textarea { width: 100%; height: 110px; font-family: monospace; font-size: 13px; background: #000; color: #00e676; border: 1px solid #444; border-radius: 6px; padding: 6px; margin-top: 6px; resize: none; }
         
-        .setting-input { width: 60px; text-align: right; font-size: 14px; border: 1px solid #999; padding: 2px; }
+        /* 設定入力欄 */
+        .setting-input { width: 65px; text-align: right; font-size: 14px; background: #2c2c2c; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 4px; font-family: monospace; }
         
-        /* メーター周り */
-        .band-row { display: grid; grid-template-columns: 80px 1fr 60px; gap: 6px; align-items: center; margin-bottom: 8px; }
-        .meter-container { width: 100%; height: 28px; background: #eee; border-radius: 6px; position: relative; overflow: hidden; }
-        .meter-fill { height: 100%; width: 0%; background: #007bff; }
-        .meter-peak-line { position: absolute; top: 0; bottom: 0; width: 3px; background: green; z-index: 10; }
-        /* 最高値数値をメーター横に表示 */
-        .peak-val { font-size: 12px; color: green; font-weight: bold; position: absolute; right: 2px; top: 4px; background: rgba(255,255,255,0.7); padding: 0 2px; }
+        /* メーター周りのレイアウト */
+        .band-row { display: grid; grid-template-columns: 85px 1fr 65px; gap: 8px; align-items: center; margin-bottom: 10px; }
+        .band-label { font-size: 12px; line-height: 1.3; color: #aaa; }
+        .band-label span { color: #fff; font-weight: bold; font-size: 13px; }
+        
+        /* レベルメーターの大型化と装飾 */
+        .meter-container { width: 100%; height: 32px; background: #2a2a2a; border-radius: 6px; position: relative; overflow: hidden; border: 1px solid #111; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); }
+        .meter-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #0277bd 0%, #00b0ff 100%); transition: width 0.05s ease-out; }
+        .meter-hit { background: linear-gradient(90deg, #2e7d32 0%, #00c853 100%); } /* しきい値を超えたときの色 */
+        
+        /* しきい値とピーク値のライン */
+        .meter-threshold-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff1744; z-index: 9; box-shadow: 0 0 4px #ff1744; }
+        .meter-peak-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #76ff03; z-index: 10; box-shadow: 0 0 4px #76ff03; display: none; }
+        
+        /* ピーク値テキスト */
+        .peak-val { font-size: 13px; color: #76ff03; font-weight: bold; position: absolute; right: 4px; top: 6px; text-shadow: 1px 1px 2px #000; font-family: monospace; z-index: 11; }
+        
+        .status-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 6px; }
     </style>
 </head>
 <body>
 
+<!-- 操作＆ステータスパネル -->
 <div class="panel">
     <div class="header-flex">
-        <h2>鐘カウンター</h2>
-        <div id="current-time" style="font-size: 13px;">--:--:--</div>
+        <h2>鐘カウンター PRO</h2>
+        <div id="current-time" style="font-size: 14px; color: #aaa; font-family: monospace;">--:--:--</div>
     </div>
-    <div class="header-flex">
+    <div class="header-flex" style="margin-top: 4px;">
         <div style="display: flex; align-items: center;">
-            <span style="font-weight: bold;">回数</span>
+            <span style="font-weight: bold; color: #888;">COUNT</span>
             <span class="counter-display" id="count-value">0</span>
         </div>
         <div style="display: flex; gap: 6px;">
             <button class="btn-gray" onclick="changeCount(-1)">−1</button>
             <button onclick="changeCount(1)">＋1</button>
-            <button class="btn-red" onclick="resetAll()">クリア</button>
+            <button class="btn-red" onclick="resetAll()">全クリア</button>
         </div>
     </div>
 </div>
 
+<!-- ログパネル -->
 <div class="panel">
+    <div class="header-flex">
+        <span style="font-size: 13px; font-weight: bold; color: #aaa;">SYSTEM LOG</span>
+        <button class="btn-gray" style="padding: 6px 10px; font-size: 12px;" onclick="saveLogCSV()">CSV保存</button>
+    </div>
     <textarea id="log-area" readonly></textarea>
 </div>
 
+<!-- 解析パネル -->
 <div class="panel">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-        <div style="font-weight: bold;">
-            <button id="btn-start" onclick="startMic()">開始</button>
+    <div class="status-header">
+        <div>
+            <button id="btn-start" onclick="startMic()">マイク開始</button>
             <button id="btn-stop" class="btn-gray" onclick="stopMic()" disabled>停止</button>
         </div>
-        <div style="font-size: 13px;">
-            待機:<input type="number" id="set-cooldown" class="setting-input" value="5.0" step="0.5">秒
+        <div style="font-size: 13px; color: #aaa;">
+            待機: <input type="number" id="set-cooldown" class="setting-input" style="width:55px;" value="5.0" step="0.5"> 秒
         </div>
     </div>
 
+    <!-- 帯域ごとのメーター -->
     <div class="band-row">
-        <div style="font-size: 12px;">LOW<br>700-820</div>
-        <div class="meter-container"><div class="meter-fill" id="bar-low"></div><div class="meter-peak-line" id="peak-low" style="display:none;"></div><div class="peak-val" id="peak-val-low"></div></div>
+        <div class="band-label"><span>LOW</span><br>700-820Hz</div>
+        <div class="meter-container">
+            <div class="meter-fill" id="bar-low"></div>
+            <div class="meter-threshold-line" id="line-low"></div>
+            <div class="meter-peak-line" id="peak-low"></div>
+            <div class="peak-val" id="peak-val-low">0.00</div>
+        </div>
         <input type="number" id="th-low" class="setting-input" value="0.60" step="0.01">
     </div>
+    
     <div class="band-row">
-        <div style="font-size: 12px;">MID<br>1500-1600</div>
-        <div class="meter-container"><div class="meter-fill" id="bar-mid"></div><div class="meter-peak-line" id="peak-mid" style="display:none;"></div><div class="peak-val" id="peak-val-mid"></div></div>
+        <div class="band-label"><span>MID</span><br>1500-1600Hz</div>
+        <div class="meter-container">
+            <div class="meter-fill" id="bar-mid"></div>
+            <div class="meter-threshold-line" id="line-mid"></div>
+            <div class="meter-peak-line" id="peak-mid"></div>
+            <div class="peak-val" id="peak-val-mid">0.00</div>
+        </div>
         <input type="number" id="th-mid" class="setting-input" value="0.40" step="0.01">
     </div>
+    
     <div class="band-row">
-        <div style="font-size: 12px;">HIGH<br>3600-3920</div>
-        <div class="meter-container"><div class="meter-fill" id="bar-high"></div><div class="meter-peak-line" id="peak-high" style="display:none;"></div><div class="peak-val" id="peak-val-high"></div></div>
+        <div class="band-label"><span>HIGH</span><br>3600-3920Hz</div>
+        <div class="meter-container">
+            <div class="meter-fill" id="bar-high"></div>
+            <div class="meter-threshold-line" id="line-high"></div>
+            <div class="meter-peak-line" id="peak-high"></div>
+            <div class="peak-val" id="peak-val-high">0.00</div>
+        </div>
         <input type="number" id="th-high" class="setting-input" value="0.30" step="0.01">
+    </div>
+
+    <div class="header-flex" style="margin-top: 12px;">
+        <button class="btn-green" style="padding: 6px 12px; font-size: 12px;" onclick="calibrateNoise()">環境音から自動設定</button>
+        <button class="btn-gray" style="padding: 6px 12px; font-size: 12px;" onclick="resetPeaks()">ピーク値のみリセット</button>
     </div>
 </div>
 
 <script>
-    let count = 0, isRunning = false, peakLevels = {low:0, mid:0, high:0};
-    
+    // --- 状態管理 ---
+    let count = 0;
+    let isRunning = false;
+    let isCalibrating = false;
+    let lastHitTime = 0;
+    let peakLevels = { low: 0, mid: 0, high: 0 };
+    let calibMax = { low: 0, mid: 0, high: 0 };
+
+    // --- データ復元 ---
     document.addEventListener('DOMContentLoaded', () => {
         count = parseInt(localStorage.getItem('count') || 0);
         document.getElementById('count-value').innerText = count;
-        document.getElementById('log-area').value = localStorage.getItem('log') || "";
+        
+        const savedLog = localStorage.getItem('log') || "";
+        const logArea = document.getElementById('log-area');
+        logArea.value = savedLog;
+        logArea.scrollTop = logArea.scrollHeight;
+        
+        updateThresholdLines();
     });
 
-    function changeCount(d) {
-        count = Math.max(0, count + d);
-        document.getElementById('count-value').innerText = count;
+    // --- しきい値入力の監視（赤い線をリアルタイムに動かす） ---
+    ['low', 'mid', 'high'].forEach(band => {
+        document.getElementById(`th-${band}`).addEventListener('input', updateThresholdLines);
+    });
+
+    function updateThresholdLines() {
+        ['low', 'mid', 'high'].forEach(band => {
+            const th = parseFloat(document.getElementById(`th-${band}`).value) || 0;
+            document.getElementById(`line-${band}`).style.left = Math.min(100, th * 100) + '%';
+        });
+    }
+
+    // --- 基本機能 ---
+    function addLog(message) {
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+        const logArea = document.getElementById('log-area');
+        logArea.value += `[${timeStr}] ${message}\n`;
+        logArea.scrollTop = logArea.scrollHeight;
+        
         localStorage.setItem('count', count);
+        localStorage.setItem('log', logArea.value);
+    }
+
+    function changeCount(delta, isAuto = false) {
+        count = Math.max(0, count + delta);
+        document.getElementById('count-value').innerText = count;
+        if (!isAuto) addLog(`手動操作 ${delta > 0 ? '+1' : '-1'} (計: ${count})`);
     }
 
     function resetAll() {
-        if(confirm("クリアしますか？")) {
+        if(confirm("回数とログをすべてクリアしますか？")) {
             count = 0;
             document.getElementById('count-value').innerText = "0";
             document.getElementById('log-area').value = "";
-            localStorage.clear();
+            localStorage.removeItem('count');
+            localStorage.removeItem('log');
+            resetPeaks();
         }
     }
 
+    function resetPeaks() {
+        peakLevels = { low: 0, mid: 0, high: 0 };
+        ['low', 'mid', 'high'].forEach(band => {
+            document.getElementById(`peak-${band}`).style.left = '0%';
+            document.getElementById(`peak-val-${band}`).innerText = '0.00';
+        });
+        if(!isRunning) addLog("ピーク表示をリセットしました");
+    }
+
+    // CSV保存機能 (Excelで開きやすい形式)
+    function saveLogCSV() {
+        let text = document.getElementById('log-area').value;
+        // 簡易的にカッコやスペースをカンマに置換
+        let csvText = "時間,内容,詳細1,詳細2,詳細3\n";
+        const lines = text.trim().split('\n');
+        lines.forEach(line => {
+            if(line) {
+                let formatted = line.replace(/\[/g, '').replace(/\]/g, ',').replace(/\s+/g, ',');
+                csvText += formatted + "\n";
+            }
+        });
+        const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvText], {type: 'text/csv;charset=utf-8'}); // BOM付きでExcel文字化け防止
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `Bell_Counter_Log_${Date.now()}.csv`;
+        link.click();
+    }
+
+    // --- Web Audio API (プロ仕様の高精度解析) ---
+    let audioCtx, analyser, dataArray, animationId;
+
     async function startMic() {
-        const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-        window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const src = audioCtx.createMediaStreamSource(stream);
-        window.analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 2048;
-        src.connect(analyser);
-        isRunning = true;
-        document.getElementById('btn-start').disabled = true;
-        document.getElementById('btn-stop').disabled = false;
-        loop();
+        if (isRunning) return;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 4096; // 高精度な周波数分解能
+            analyser.smoothingTimeConstant = 0.5; // メーターの反応速度（0.0〜1.0）
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            const microphone = audioCtx.createMediaStreamSource(stream);
+            microphone.connect(analyser);
+
+            isRunning = true;
+            document.getElementById('btn-start').disabled = true;
+            document.getElementById('btn-stop').disabled = false;
+            
+            resetPeaks();
+            updateThresholdLines();
+            addLog("--- マイク解析開始 ---");
+
+            ['low', 'mid', 'high'].forEach(band => {
+                document.getElementById(`peak-${band}`).style.display = 'block';
+            });
+
+            processAudio();
+        } catch (err) {
+            alert("マイクエラー: ブラウザの権限を確認してください。\n" + err);
+        }
     }
 
     function stopMic() {
+        if (!isRunning) return;
         isRunning = false;
-        audioCtx.close();
+        cancelAnimationFrame(animationId);
+        if (audioCtx) audioCtx.close();
+        
         document.getElementById('btn-start').disabled = false;
         document.getElementById('btn-stop').disabled = true;
+        addLog("--- マイク解析停止 ---");
+        
+        ['low', 'mid', 'high'].forEach(band => {
+            document.getElementById(`bar-${band}`).style.width = '0%';
+            document.getElementById(`bar-${band}`).className = 'meter-fill';
+        });
     }
 
-    function loop() {
-        if(!isRunning) return;
-        const data = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(data);
+    // 指定Hz帯域の正確なエネルギーを計算
+    function getAccurateBandLevel(minHz, maxHz) {
+        const nyquist = audioCtx.sampleRate / 2;
+        const minIndex = Math.floor((minHz / nyquist) * analyser.frequencyBinCount);
+        const maxIndex = Math.ceil((maxHz / nyquist) * analyser.frequencyBinCount);
         
-        ['low', 'mid', 'high'].forEach((b, i) => {
-            const val = data[i+5] / 255; // 簡易抽出
-            peakLevels[b] = Math.max(peakLevels[b], val);
-            
-            document.getElementById(`bar-${b}`).style.width = (val * 100) + '%';
-            document.getElementById(`peak-${b}`).style.left = (peakLevels[b] * 100) + '%';
-            document.getElementById(`peak-${b}`).style.display = 'block';
-            document.getElementById(`peak-val-${b}`).innerText = peakLevels[b].toFixed(2);
-        });
-        requestAnimationFrame(loop);
+        let sum = 0;
+        for (let i = minIndex; i <= maxIndex; i++) {
+            sum += dataArray[i];
+        }
+        const count = maxIndex - minIndex + 1;
+        const avg = count > 0 ? (sum / count) : 0;
+        return avg / 255.0; 
     }
-    
-    setInterval(() => document.getElementById('current-time').innerText = new Date().toLocaleTimeString(), 1000);
+
+    function processAudio() {
+        if (!isRunning) return;
+        analyser.getByteFrequencyData(dataArray);
+
+        // 正確な帯域計算
+        const levels = {
+            low: getAccurateBandLevel(700, 820),
+            mid: getAccurateBandLevel(1500, 1600),
+            high: getAccurateBandLevel(3600, 3920)
+        };
+
+        const th = {
+            low: parseFloat(document.getElementById('th-low').value),
+            mid: parseFloat(document.getElementById('th-mid').value),
+            high: parseFloat(document.getElementById('th-high').value)
+        };
+
+        // キャリブレーション処理
+        if (isCalibrating) {
+            calibMax.low = Math.max(calibMax.low, levels.low);
+            calibMax.mid = Math.max(calibMax.mid, levels.mid);
+            calibMax.high = Math.max(calibMax.high, levels.high);
+        }
+
+        // UI更新
+        ['low', 'mid', 'high'].forEach(band => {
+            const val = levels[band];
+            peakLevels[band] = Math.max(peakLevels[band], val);
+            
+            const isHit = val >= th[band];
+            const barEl = document.getElementById(`bar-${band}`);
+            barEl.style.width = (val * 100) + '%';
+            barEl.className = isHit ? 'meter-fill meter-hit' : 'meter-fill';
+            
+            document.getElementById(`peak-${band}`).style.left = (peakLevels[band] * 100) + '%';
+            document.getElementById(`peak-val-${band}`).innerText = peakLevels[band].toFixed(2);
+        });
+
+        // 判定ロジック
+        const cooldownMs = parseFloat(document.getElementById('set-cooldown').value) * 1000;
+        const now = performance.now();
+
+        if (levels.low >= th.low && levels.mid >= th.mid && levels.high >= th.high) {
+            if (now - lastHitTime > cooldownMs) {
+                count++;
+                document.getElementById('count-value').innerText = count;
+                addLog(`[自動検出] +1 (計${count}) L:${levels.low.toFixed(2)} M:${levels.mid.toFixed(2)} H:${levels.high.toFixed(2)}`);
+                lastHitTime = now;
+            }
+        }
+
+        animationId = requestAnimationFrame(processAudio);
+    }
+
+    // 環境音からしきい値を自動設定
+    function calibrateNoise() {
+        if (!isRunning) {
+            alert("先にマイクを開始してください。");
+            return;
+        }
+        if (isCalibrating) return;
+
+        isCalibrating = true;
+        calibMax = { low: 0, mid: 0, high: 0 };
+        addLog("環境音を測定中...(3秒間)");
+        
+        setTimeout(() => {
+            isCalibrating = false;
+            // 最大ノイズ + 0.15 のマージンを取る（PRO版はややシビアに）
+            const margin = 0.15;
+            const newLow = Math.min(0.95, calibMax.low + margin);
+            const newMid = Math.min(0.95, calibMax.mid + margin);
+            const newHigh = Math.min(0.95, calibMax.high + margin);
+            
+            document.getElementById('th-low').value = newLow.toFixed(2);
+            document.getElementById('th-mid').value = newMid.toFixed(2);
+            document.getElementById('th-high').value = newHigh.toFixed(2);
+            
+            updateThresholdLines();
+            addLog(`測定完了 L:${newLow.toFixed(2)} M:${newMid.toFixed(2)} H:${newHigh.toFixed(2)}`);
+        }, 3000);
+    }
+
+    // 時計の更新
+    setInterval(() => {
+        document.getElementById('current-time').innerText = new Date().toLocaleTimeString('ja-JP');
+    }, 1000);
 </script>
 </body>
 </html>
